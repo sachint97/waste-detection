@@ -10,11 +10,15 @@ from wasteDetection.entity.artifact_entity import DataIngestionArtifact
 from wasteDetection.entity.artifact_entity import DataValidationArtifact
 from wasteDetection.entity.config_entity import DataValidationConfig
 from wasteDetection.components.data_validation import DataValidation
+from wasteDetection.entity.config_entity import ModelTrainerConfig
+from wasteDetection.entity.artifact_entity import ModelTrainerArtifact
+from wasteDetection.components.model_trainer import ModelTrainer
 
 class TrainPipeline:
     def __init__(self):
         self.data_ingestion_config = DataIngestionConfig()
         self.data_validation_config = DataValidationConfig()
+        self.model_trainer_config = ModelTrainerConfig()
 
     def start_data_ingestion(self) -> DataIngestionArtifact:
         try:
@@ -59,11 +63,31 @@ class TrainPipeline:
             error = AppException(e,sys)
             logging.error(error)
             raise error
+        
+    def start_model_trainer(self)-> ModelTrainerArtifact:
+        try:
+            model_trainer = ModelTrainer(
+                model_trainer_config=self.model_trainer_config
+            )
+            model_trainer_artifact = model_trainer.initiate_model_trainer()
+
+            return model_trainer_artifact
+        
+        except Exception as e:
+            error = AppException(e,sys)
+            logging.error(error)
+            raise error
 
     def run_pipeline(self)->None:
         try:
             data_ingestion_artifact = self.start_data_ingestion()
             data_validation_artifact = self.start_data_validation(data_ingestion_artifact=data_ingestion_artifact)
+            
+            if data_validation_artifact.validation_status == True:
+                model_trainer_artifact = self.start_model_trainer()
+            else:
+                logging.error("Your data is not in correct format")
+                raise Exception("Your data is not in correct format")
             
         except Exception as e:
             error = AppException(e,sys)
